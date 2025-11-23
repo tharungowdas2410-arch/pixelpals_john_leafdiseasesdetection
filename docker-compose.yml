@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+    environment:
+      POSTGRES_DB: plant_disease
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  redis:
+    build:
+      context: ./docker/redis
+    networks:
+      - backend
+
+  inference:
+    build:
+      context: ./docker/inference
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models:/app/models
+    networks:
+      - backend
+
+  backend:
+    build:
+      context: .
+    depends_on:
+      - postgres
+      - inference
+      - redis
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - backend
+    command: >
+      sh -c "sleep 8 && npx prisma db push && npx prisma db seed && node dist/server.js"
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=/api
+    networks:
+      - backend
+
+  nginx:
+    build:
+      context: ./docker/nginx
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+    driver: bridge
+

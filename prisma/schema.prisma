@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  FARMER
+  AGRICULTURAL_INDUSTRY
+  PHARMACEUTICAL_INDUSTRY
+  ADMIN
+}
+
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  role           UserRole        @default(FARMER)
+  googleId       String?         @unique
+  refreshToken   String?
+  roleEntityId   String?
+  roleEntity     Role?           @relation(fields: [roleEntityId], references: [id])
+  predictions    Prediction[]
+  sensorReadings SensorReading[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        UserRole         @unique
+  description String?
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  assignedAt   DateTime   @default(now())
+
+  @@id([roleId, permissionId])
+}
+
+model PlantInfo {
+  id               String         @id @default(uuid())
+  species          String         @unique
+  medicinalValue   String
+  nutritionalInfo  String
+  avgMarketPrice   Float
+  cures            String
+  recommendedSoil  String?
+  diseaseInfo      DiseaseInfo[]
+  marketPrices     MarketPrice[]
+  predictions      Prediction[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model DiseaseInfo {
+  id                String       @id @default(uuid())
+  name              String       @unique
+  cureSteps         String
+  vulnerabilityScore Int        @default(50)
+  toxicityRisk      String       @default("LOW")
+  curable           Boolean      @default(true)
+  disadvantages     String?
+  plantId           String?
+  plant             PlantInfo?   @relation(fields: [plantId], references: [id])
+  predictions       Prediction[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model MarketPrice {
+  id        String    @id @default(uuid())
+  region    String
+  price     Float
+  plantId   String
+  plant     PlantInfo @relation(fields: [plantId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([plantId, region], name: "plantId_region")
+}
+
+model Prediction {
+  id            String       @id @default(uuid())
+  species       String?
+  disease       String
+  confidence    Float?
+  severity      String?
+  qualityIndex  Float?
+  payload       Json
+  userId        String
+  plantId       String?
+  diseaseInfoId String?
+  user          User         @relation(fields: [userId], references: [id])
+  plant         PlantInfo?   @relation(fields: [plantId], references: [id])
+  diseaseInfo   DiseaseInfo? @relation(fields: [diseaseInfoId], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@index([userId], name: "idx_prediction_user")
+  @@index([species], name: "idx_prediction_species")
+}
+
+model SensorReading {
+  id          String   @id @default(uuid())
+  ph          Float
+  ec          Float
+  moisture    Float
+  temperature Float
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([userId], name: "idx_sensor_user")
+}
+
+model Dataset {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  source      String?
+  classes     String[]
+  imageCount  Int           @default(0)
+  items       DatasetItem[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model DatasetItem {
+  id        String   @id @default(uuid())
+  datasetId String
+  dataset   Dataset  @relation(fields: [datasetId], references: [id])
+  imagePath String
+  label     String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([datasetId], name: "idx_dataset_item_dataset")
+}
+

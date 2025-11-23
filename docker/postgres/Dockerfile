@@ -1,0 +1,6 @@
+FROM postgres:15-alpine
+ENV POSTGRES_DB=plant_disease
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=postgres
+EXPOSE 5432
+
