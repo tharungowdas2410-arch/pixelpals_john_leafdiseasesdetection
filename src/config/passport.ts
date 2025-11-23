@@ -12,40 +12,44 @@ passport.deserializeUser((obj: Express.User, done) => {
   done(null, obj);
 });
 
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-      callbackURL: env.GOOGLE_CALLBACK_URL
-    },
-    async (_accessToken: string, _refreshToken: string, profile: Profile, done: VerifyCallback) => {
-      try {
-        const { id, displayName, emails } = profile;
-        const email = emails?.[0]?.value;
-        if (!email) {
-          return done(new Error("Email not provided by Google"), undefined);
+if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_CALLBACK_URL) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+        callbackURL: env.GOOGLE_CALLBACK_URL
+      },
+      async (_accessToken: string, _refreshToken: string, profile: Profile, done: VerifyCallback) => {
+        try {
+          const { id, displayName, emails } = profile;
+          const email = emails?.[0]?.value;
+          if (!email) {
+            return done(new Error("Email not provided by Google"), undefined);
+          }
+
+          const user = await authService.handleOAuthLogin({
+            providerId: id,
+            name: displayName,
+            email
+          });
+
+          return done(null, {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          });
+        } catch (error) {
+          logger.error("Google OAuth failure", { error });
+          return done(error as Error, undefined);
         }
-
-        const user = await authService.handleOAuthLogin({
-          providerId: id,
-          name: displayName,
-          email
-        });
-
-        return done(null, {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role
-        });
-      } catch (error) {
-        logger.error("Google OAuth failure", { error });
-        return done(error as Error, undefined);
       }
-    }
-  )
-);
+    )
+  );
+} else {
+  logger.warn("Google OAuth not configured; skipping Google strategy setup");
+}
 
 export default passport;
 

@@ -23,6 +23,9 @@ interface AuthUser {
 }
 
 const callInference = async (filePath: string): Promise<InferenceResponse> => {
+  if (!env.INFERENCE_URL) {
+    throw new Error("Inference service not configured (INFERENCE_URL missing)");
+  }
   const form = new FormData();
   form.append("image", fs.createReadStream(filePath));
 
